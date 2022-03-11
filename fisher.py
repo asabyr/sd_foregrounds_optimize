@@ -1,7 +1,10 @@
 import inspect
 import numpy as np
 from scipy import interpolate
-
+import sys
+sys.path.append('/Users/asabyr/Documents/SecondYearProject/sd_foregrounds/')
+sys.path.append('/Users/asabyr/Documents/Spring2022/')
+from NoiseFunctions import getnoise
 import spectral_distortions as sd
 import foregrounds as fg
 ndp = np.float64
@@ -10,7 +13,8 @@ ndp = np.float64
 class FisherEstimation:
     def __init__(self, fmin=7.5e9, fmax=3.e12, fstep=15.e9, \
                  duration=86.4, bandpass=True, fsky=0.7, mult=1., \
-                 priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False):
+                 priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, arbfreq=False, fid_dur=6., freq_arr=np.array([]), noise_arr=np.array([]), Ndet_arr=np.array([])):
+
         self.fmin = fmin
         self.fmax = fmax
         self.bandpass_step = 1.e8
@@ -21,15 +25,46 @@ class FisherEstimation:
         self.mult = mult
         self.priors = priors
         self.drop = drop
-
-        self.setup()
-        self.set_signals()
-        
+        self.fid_dur=fid_dur
+        if arbfreq:
+            #self.noise_arr=noise_arr
+            #self.center_frequencies=freq_arr
+            self.freq_edg=freq_arr
+            self.Ndet_arr=Ndet_arr
+            self.sensitivity()
+            self.set_signals()
+        else:
+            self.setup()
+            self.set_signals()
         if doCO:
             self.mask = ~np.isclose(115.27e9, self.center_frequencies, atol=self.fstep/2.)
         else:
             self.mask = np.ones(len(self.center_frequencies), bool)
         return
+
+    # def __init__(self, freq_arr, noise_arr, \
+    #              duration=86.4, fsky=0.7, mult=1., \
+    #              priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False):
+    #     #self.fstep = fstep
+    #     self.duration = duration
+    #     self.fsky = fsky
+    #     self.mult = mult
+    #     self.priors = priors
+    #     self.drop = drop
+    #
+    #     self.noise_arr=noise_arr
+    #     self.center_frequencies=freq_arr
+    #     self.noise = self.sensitivity()
+    #
+    #     #self.setup()
+    #     self.set_signals()
+    #
+    #     if doCO:
+    #         self.mask = ~np.isclose(115.27e9, self.center_frequencies, atol=self.fstep/2.)
+    #     else:
+    #         self.mask = np.ones(len(self.center_frequencies), bool)
+    #     return
+
 
     def setup(self):
         self.set_frequencies()
@@ -47,7 +82,7 @@ class FisherEstimation:
         for k in range(N):
             normF[k, k] = 1. / F[k, k]
         self.cov = ((np.mat(normF, dtype=ndp) * np.mat(F, dtype=ndp)).I * np.mat(normF, dtype=ndp)).astype(ndp)
-        #self.cov = np.mat(F, dtype=ndp).I 
+        #self.cov = np.mat(F, dtype=ndp).I
         self.F = F
         self.get_errors()
         return
@@ -68,7 +103,7 @@ class FisherEstimation:
     def set_signals(self, fncs=None):
         if fncs is None:
             fncs = [sd.DeltaI_mu, sd.DeltaI_reltSZ_2param_yweight, sd.DeltaI_DeltaT,
-                    fg.thermal_dust_rad, fg.cib_rad, fg.jens_freefree_rad, 
+                    fg.thermal_dust_rad, fg.cib_rad, fg.jens_freefree_rad,
                     fg.jens_synch_rad, fg.spinning_dust, fg.co_rad]
         self.signals = fncs
         self.args, self.p0, self.argvals = self.get_function_args()
@@ -84,15 +119,17 @@ class FisherEstimation:
 
     def band_averaging_frequencies(self):
         #freqs = np.arange(self.fmin + self.bandpass_step/2., self.fmax + self.fstep, self.bandpass_step, dtype=ndp)
-        freqs = np.arange(self.fmin + self.bandpass_step/2., self.fmax + self.bandpass_step + self.fmin, self.bandpass_step, dtype=ndp)
+        freqs = np.arange(self.fmin + self.bandpass_step/2., self.fmax + self.bandpass_step/2 + self.fmin, self.bandpass_step, dtype=ndp)
         binstep = int(self.fstep / self.bandpass_step)
-        freqs = freqs[self.drop * binstep : (len(freqs) / binstep) * binstep]
-        centerfreqs = freqs.reshape((len(freqs) / binstep, binstep)).mean(axis=1)
+        print(int((len(freqs) / binstep) * binstep))
+        freqs = freqs[self.drop * binstep : int((len(freqs) / binstep) * binstep)]
+        print(freqs)
+        centerfreqs = freqs.reshape((int(len(freqs) / binstep), binstep)).mean(axis=1)
         #self.windowfnc = np.sinc((np.arange(binstep)-(binstep/2-1))/float(binstep))
         return freqs, centerfreqs, binstep
 
     def pixie_sensitivity(self):
-        sdata = np.loadtxt('templates/Sensitivities.dat', dtype=ndp)
+        sdata = np.loadtxt('/Users/asabyr/Documents/SecondYearProject/sd_foregrounds/templates/Sensitivities.dat', dtype=ndp)
         fs = sdata[:, 0] * 1e9
         sens = sdata[:, 1]
         template = interpolate.interp1d(np.log10(fs), np.log10(sens), bounds_error=False, fill_value="extrapolate")
@@ -100,9 +137,15 @@ class FisherEstimation:
         if self.bandpass:
             N = len(self.band_frequencies)
             noise = 10. ** template(np.log10(self.band_frequencies)) / np.sqrt(skysr) * np.sqrt(15. / self.duration) * self.mult * 1.e26
-            return (noise.reshape(( N / self.binstep, self.binstep)).mean(axis=1)).astype(ndp)
+            return (noise.reshape((int( N / self.binstep), self.binstep)).mean(axis=1)).astype(ndp)
         else:
             return (10. ** template(np.log10(self.center_frequencies)) / np.sqrt(skysr) * np.sqrt(15. / self.duration) * self.mult * 1.e26).astype(ndp)
+
+    def sensitivity(self):
+
+        self.center_frequencies, self.noise=getnoise(self.freq_edg, self.Ndet_arr)
+
+        return
 
     def get_function_args(self):
         targs = []
@@ -139,18 +182,18 @@ class FisherEstimation:
             frequencies = self.band_frequencies
         else:
             frequencies = self.center_frequencies
+
         N = len(frequencies)
         model = np.zeros(N, dtype=ndp)
         for fnc in self.signals:
             argsp = inspect.getargspec(fnc)
             args = argsp[0][1:]
-            if len(kwarg) and kwarg.keys()[0] in args:
+            if len(kwarg) and list(kwarg.keys())[0] in args:
                 model += fnc(frequencies, **kwarg)
         if self.bandpass:
-            #rmodel = model.reshape((N / self.binstep, self.binstep)) 
+            #rmodel = model.reshape((N / self.binstep, self.binstep))
             #total = rmodel * self.windowfnc
-            return model.reshape((N / self.binstep, self.binstep)).mean(axis=1)
+            return model.reshape((int(N / self.binstep), self.binstep)).mean(axis=1)
             #return total.mean(axis=1)
         else:
             return model
-
