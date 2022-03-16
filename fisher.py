@@ -143,7 +143,7 @@ class FisherEstimation:
 
     def sensitivity(self):
 
-        self.center_frequencies, self.noise=getnoise(self.freq_edg, self.Ndet_arr)
+        self.center_frequencies, self.noise=getnoise(self.freq_edg, self.Ndet_arr, self.duration, self.fsky)
 
         return
 
