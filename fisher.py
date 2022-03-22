@@ -2,6 +2,7 @@ import inspect
 import numpy as np
 from scipy import interpolate
 import sys
+import matplotlib.pyplot as plt
 sys.path.append('/Users/asabyr/Documents/SecondYearProject/sd_foregrounds/')
 sys.path.append('/Users/asabyr/Documents/Spring2022/')
 from NoiseFunctions import getnoise
@@ -13,7 +14,7 @@ ndp = np.float64
 class FisherEstimation:
     def __init__(self, fmin=7.5e9, fmax=3.e12, fstep=15.e9, \
                  duration=86.4, bandpass=True, fsky=0.7, mult=1., \
-                 priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, arbfreq=False, fid_dur=6., freq_arr=np.array([]), noise_arr=np.array([]), Ndet_arr=np.array([])):
+                 priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, arbfreq=False, freq_arr=np.array([]), Ndet_arr=np.array([])):
 
         self.fmin = fmin
         self.fmax = fmax
@@ -25,13 +26,12 @@ class FisherEstimation:
         self.mult = mult
         self.priors = priors
         self.drop = drop
-        self.fid_dur=fid_dur
         if arbfreq:
             #self.noise_arr=noise_arr
             #self.center_frequencies=freq_arr
             self.freq_edg=freq_arr
             self.Ndet_arr=Ndet_arr
-            self.sensitivity()
+            self.center_frequencies, self.noise=self.sensitivity()
             self.set_signals()
         else:
             self.setup()
@@ -40,6 +40,8 @@ class FisherEstimation:
             self.mask = ~np.isclose(115.27e9, self.center_frequencies, atol=self.fstep/2.)
         else:
             self.mask = np.ones(len(self.center_frequencies), bool)
+        #print(self.center_frequencies)
+        #print(self.noise)
         return
 
     # def __init__(self, freq_arr, noise_arr, \
@@ -82,6 +84,7 @@ class FisherEstimation:
         for k in range(N):
             normF[k, k] = 1. / F[k, k]
         self.cov = ((np.mat(normF, dtype=ndp) * np.mat(F, dtype=ndp)).I * np.mat(normF, dtype=ndp)).astype(ndp)
+
         #self.cov = np.mat(F, dtype=ndp).I
         self.F = F
         self.get_errors()
@@ -143,9 +146,9 @@ class FisherEstimation:
 
     def sensitivity(self):
 
-        self.center_frequencies, self.noise=getnoise(self.freq_edg, self.Ndet_arr)
+        center_frequencies, sens=getnoise(self.freq_edg, self.Ndet_arr)
 
-        return (self.noise/ np.sqrt(self.fsky) * np.sqrt(self.duration/6.) * self.mult).astype(ndp)
+        return (center_frequencies).astype(ndp),(sens/ np.sqrt(self.fsky) * np.sqrt(6./self.duration) * self.mult).astype(ndp)
 
     def get_function_args(self):
         targs = []
@@ -196,4 +199,6 @@ class FisherEstimation:
             return model.reshape((int(N / self.binstep), self.binstep)).mean(axis=1)
             #return total.mean(axis=1)
         else:
+            #plt.loglog(frequencies, model)
+            #print(model)
             return model
