@@ -147,8 +147,9 @@ class FisherEstimation:
     def sensitivity(self):
 
         center_frequencies, sens=getnoise(self.freq_edg, self.Ndet_arr)
+        skysr = 4. * np.pi * (180. / np.pi) ** 2 * self.fsky
 
-        return (center_frequencies).astype(ndp),(sens/ np.sqrt(self.fsky) * np.sqrt(6./self.duration) * self.mult).astype(ndp)
+        return (center_frequencies).astype(ndp),(sens/ np.sqrt(skysr) * np.sqrt(6./self.duration) * self.mult).astype(ndp)
 
     def get_function_args(self):
         targs = []
