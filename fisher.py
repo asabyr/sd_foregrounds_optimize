@@ -14,7 +14,7 @@ ndp = np.float64
 class FisherEstimation:
     def __init__(self, fmin=7.5e9, fmax=3.e12, fstep=15.e9, \
                  duration=86.4, bandpass=True, fsky=0.7, mult=1., \
-                 priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, arbfreq=False, freq_arr=np.array([]), Ndet_arr=np.array([])):
+                 priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, arbfreq=False, freq_arr=np.array([]), Ndet_arr=np.array([]),noisefile=None):
 
         self.fmin = fmin
         self.fmax = fmax
@@ -31,6 +31,7 @@ class FisherEstimation:
             #self.center_frequencies=freq_arr
             self.freq_edg=freq_arr
             self.Ndet_arr=Ndet_arr
+            self.noisefile=noisefile
             self.center_frequencies, self.noise=self.sensitivity()
             self.set_signals()
         else:
@@ -146,7 +147,7 @@ class FisherEstimation:
 
     def sensitivity(self):
 
-        center_frequencies, sens=getnoise(self.freq_edg, self.Ndet_arr)
+        center_frequencies, sens=getnoise(self.freq_edg, self.Ndet_arr, precompute=self.noisefile)
         skysr = 4. * np.pi * (180. / np.pi) ** 2 * self.fsky
 
         return (center_frequencies).astype(ndp),(sens/ np.sqrt(skysr) * np.sqrt(6./self.duration) * self.mult).astype(ndp)
