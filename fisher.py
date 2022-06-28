@@ -14,7 +14,7 @@ ndp = np.float64
 class FisherEstimation:
     def __init__(self, fmin=7.5e9, fmax=3.e12, fstep=15.e9, \
                  duration=86.4, bandpass=True, fsky=0.7, mult=1., \
-                 priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, arbfreq=False, freq_arr=np.array([]), Ndet_arr=np.array([]),noisefile=None):
+                 priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, instrument='pixie', freq_arr=np.array([]), Ndet_arr=np.array([]),noisefile=None):
 
         self.fmin = fmin
         self.fmax = fmax
@@ -26,52 +26,34 @@ class FisherEstimation:
         self.mult = mult
         self.priors = priors
         self.drop = drop
-        if arbfreq:
-            #self.noise_arr=noise_arr
-            #self.center_frequencies=freq_arr
+
+        if instrument=='specter':
+
             self.freq_edg=freq_arr
             self.Ndet_arr=Ndet_arr
             self.noisefile=noisefile
-            self.center_frequencies, self.noise=self.sensitivity()
-            self.set_signals()
+            self.center_frequencies, self.noise=self.specter_sensitivity()
+
+
+        elif instrument=='pixie':
+            self.set_frequencies()
+            self.noise = self.pixie_sensitivity()
+
+        elif instrument=='firas':
+            self.set_frequencies()
+            self.noise = self.firas_sensitivity()
         else:
-            self.setup()
-            self.set_signals()
+            print("choose between pixie, firas or specter")
+            return
+
+        self.set_signals()
+
         if doCO:
             self.mask = ~np.isclose(115.27e9, self.center_frequencies, atol=self.fstep/2.)
         else:
             self.mask = np.ones(len(self.center_frequencies), bool)
         #print(self.center_frequencies)
         #print(self.noise)
-        return
-
-    # def __init__(self, freq_arr, noise_arr, \
-    #              duration=86.4, fsky=0.7, mult=1., \
-    #              priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False):
-    #     #self.fstep = fstep
-    #     self.duration = duration
-    #     self.fsky = fsky
-    #     self.mult = mult
-    #     self.priors = priors
-    #     self.drop = drop
-    #
-    #     self.noise_arr=noise_arr
-    #     self.center_frequencies=freq_arr
-    #     self.noise = self.sensitivity()
-    #
-    #     #self.setup()
-    #     self.set_signals()
-    #
-    #     if doCO:
-    #         self.mask = ~np.isclose(115.27e9, self.center_frequencies, atol=self.fstep/2.)
-    #     else:
-    #         self.mask = np.ones(len(self.center_frequencies), bool)
-    #     return
-
-
-    def setup(self):
-        self.set_frequencies()
-        self.noise = self.pixie_sensitivity()
         return
 
     def run_fisher_calculation(self):
@@ -145,7 +127,7 @@ class FisherEstimation:
         else:
             return (10. ** template(np.log10(self.center_frequencies)) / np.sqrt(skysr) * np.sqrt(15. / self.duration) * self.mult * 1.e26).astype(ndp)
 
-    def sensitivity(self):
+    def specter_sensitivity(self):
 
         center_frequencies, sens=getnoise(self.freq_edg, self.Ndet_arr, precompute=self.noisefile)
         skysr = 4. * np.pi * (180. / np.pi) ** 2 * self.fsky
