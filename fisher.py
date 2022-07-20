@@ -3,11 +3,11 @@ import numpy as np
 from scipy import interpolate
 import sys
 import matplotlib.pyplot as plt
-sys.path.append('/Users/asabyr/Documents/SecondYearProject/sd_foregrounds/')
-sys.path.append('/Users/asabyr/Documents/Spring2022/cmb_distortions_instrument/')
-from NoiseFunctions import getnoise
+sys.path.append('/burg/home/as6131/CMB_dist_instrument/sd_foregrounds_optimize/')
+sys.path.append('/burg/home/as6131/CMB_dist_instrument/specter_optimization_project/')
+from NoiseFunctions import getnoise_nominal
 import spectral_distortions as sd
-import foregrounds as fg
+import foregrounds_fisher as fg
 ndp = np.float64
 
 
@@ -130,7 +130,7 @@ class FisherEstimation:
 
     def specter_sensitivity(self):
 
-        center_frequencies, sens=getnoise(self.freq_edg, self.Ndet_arr,self.files, precompute=self.noisefile)
+        center_frequencies, sens=getnoise_nominal(bands=self.freq_edg, prefix=self.files, dets=self.Ndet_arr, precompute=self.noisefile)
         skysr = 4. * np.pi * (180. / np.pi) ** 2 * self.fsky
 
         return (center_frequencies).astype(ndp),(sens/ np.sqrt(skysr) * np.sqrt(6./self.duration) * self.mult).astype(ndp)
