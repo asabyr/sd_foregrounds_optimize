@@ -1,20 +1,24 @@
 import inspect
 import numpy as np
 from scipy import interpolate
+from scipy import linalg
 import sys
 import matplotlib.pyplot as plt
+
 sys.path.append('/burg/home/as6131/CMB_dist_instrument/sd_foregrounds_optimize/')
 sys.path.append('/burg/home/as6131/CMB_dist_instrument/specter_optimization_project/')
+
 from NoiseFunctions import getnoise_nominal
 import spectral_distortions as sd
 import foregrounds_fisher as fg
 ndp = np.float64
-
-
+#ndp=np.float128
+clight=299792458.
 class FisherEstimation:
     def __init__(self, fmin=7.5e9, fmax=3.e12, fstep=15.e9, \
                  duration=86.4, bandpass=True, fsky=0.7, mult=1., \
-                 priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, instrument='pixie', freq_arr=np.array([]), Ndet_arr=np.array([]),noisefile=None, files='test'):
+                 priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, instrument='pixie',\
+                  file_prefix='test',freq_bands=np.array([]), Ndet_arr=np.array([]),noisefile=None):
 
         self.fmin = fmin
         self.fmax = fmax
@@ -26,11 +30,11 @@ class FisherEstimation:
         self.mult = mult
         self.priors = priors
         self.drop = drop
-        self.files=files
+        self.file_prefix=file_prefix
 
         if instrument=='specter':
 
-            self.freq_edg=freq_arr
+            self.freq_bands=freq_bands
             self.Ndet_arr=Ndet_arr
             self.noisefile=noisefile
             self.center_frequencies, self.noise=self.specter_sensitivity()
@@ -41,8 +45,8 @@ class FisherEstimation:
             self.noise = self.pixie_sensitivity()
 
         elif instrument=='firas':
-            self.set_frequencies()
-            self.noise = self.firas_sensitivity()
+
+            self.center_frequencies, self.noise = self.firas_sensitivity()
         else:
             print("choose between pixie, firas or specter")
             return
@@ -53,6 +57,7 @@ class FisherEstimation:
             self.mask = ~np.isclose(115.27e9, self.center_frequencies, atol=self.fstep/2.)
         else:
             self.mask = np.ones(len(self.center_frequencies), bool)
+            #print(self.mask)
         #print(self.center_frequencies)
         #print(self.noise)
         return
@@ -64,20 +69,30 @@ class FisherEstimation:
             if k in self.args and self.priors[k] > 0:
                 kindex = np.where(self.args == k)[0][0]
                 F[kindex, kindex] += 1. / (self.priors[k] * self.argvals[k])**2
+        #print("fisher information matrix after priors & fiducial values")
+        #print(F.diagonal())
         normF = np.zeros([N, N], dtype=ndp)
         for k in range(N):
             normF[k, k] = 1. / F[k, k]
         self.cov = ((np.mat(normF, dtype=ndp) * np.mat(F, dtype=ndp)).I * np.mat(normF, dtype=ndp)).astype(ndp)
+        #self.cov=np.mat(F, dtype=ndp).I
+        #self.cov=np.matmul(np.linalg.inv((np.matmul(normF,F))),normF)
+        #self.cov=(linalg.inv(normF.dot(F.T))).dot(normF.T)
 
+
+        #print("covariance matrix")
+        #print(self.cov.diagonal())
         #self.cov = np.mat(F, dtype=ndp).I
         self.F = F
         self.get_errors()
+
         return
 
     def get_errors(self):
         self.errors = {}
         for k, arg in enumerate(self.args):
             self.errors[arg] = np.sqrt(self.cov[k,k])
+        #print(self.errors)
         return
 
     def print_errors(self, args=None):
@@ -106,11 +121,11 @@ class FisherEstimation:
 
     def band_averaging_frequencies(self):
         #freqs = np.arange(self.fmin + self.bandpass_step/2., self.fmax + self.fstep, self.bandpass_step, dtype=ndp)
-        freqs = np.arange(self.fmin + self.bandpass_step/2., self.fmax + self.bandpass_step/2 + self.fmin, self.bandpass_step, dtype=ndp)
+        freqs = np.arange(self.fmin + self.bandpass_step/2., self.fmax + self.bandpass_step+self.fmin, self.bandpass_step, dtype=ndp)
         binstep = int(self.fstep / self.bandpass_step)
-        print(int((len(freqs) / binstep) * binstep))
+        #print(int((len(freqs) / binstep) * binstep))
         freqs = freqs[self.drop * binstep : int((len(freqs) / binstep) * binstep)]
-        print(freqs)
+        #print(len(freqs))
         centerfreqs = freqs.reshape((int(len(freqs) / binstep), binstep)).mean(axis=1)
         #self.windowfnc = np.sinc((np.arange(binstep)-(binstep/2-1))/float(binstep))
         return freqs, centerfreqs, binstep
@@ -130,10 +145,29 @@ class FisherEstimation:
 
     def specter_sensitivity(self):
 
-        center_frequencies, sens=getnoise_nominal(bands=self.freq_edg, prefix=self.files, dets=self.Ndet_arr, precompute=self.noisefile)
+        center_frequencies, sens=getnoise_nominal(prefix=self.file_prefix, bands=self.freq_bands, dets=self.Ndet_arr, precompute=self.noisefile)
         skysr = 4. * np.pi * (180. / np.pi) ** 2 * self.fsky
 
+        # print((center_frequencies).astype(ndp))
+        # print((sens/ np.sqrt(skysr) * np.sqrt(6./self.duration) * self.mult).astype(ndp))
         return (center_frequencies).astype(ndp),(sens/ np.sqrt(skysr) * np.sqrt(6./self.duration) * self.mult).astype(ndp)
+
+    def firas_sensitivity(self):
+
+        sdata=np.loadtxt('/Users/asabyr/Documents/software/sd_foregrounds_optimize/data/firas_sensitivity.txt', dtype=ndp, delimiter=',')
+        firas_sigmas=np.loadtxt('/Users/asabyr/Documents/software/sd_foregrounds_optimize/data/firas_monopole_spec_v1.txt')
+        fs_sigmas=firas_sigmas[:-2,0]*clight*10**2
+        #print(fs_sigmas)
+        #fs=firas_sigmas[:-2,0]*clight*10**2
+        fs = sdata[:, 0] * 1e9
+        #print(fs)
+        sens = sdata[:, 1]
+        #print("loaded firas sensitivities")
+        #template = interpolate.interp1d(np.log10(fs), np.log10(sens), bounds_error=False, fill_value="extrapolate")
+
+        #return fs_sigmas, 10. ** template(np.log10(fs_sigmas))
+        return fs, sens
+
 
     def get_function_args(self):
         targs = []
@@ -151,12 +185,31 @@ class FisherEstimation:
         F = np.zeros([N, N], dtype=ndp)
         for i in range(N):
             dfdpi = self.signal_derivative(self.args[i], self.p0[i])
+            #print(dfdpi)
             dfdpi /= self.noise
+            #print(dfdpi)
+            # if dfdpi[self.mask].any() < 0.:
+            #     print(dfdpi)
+            #     print(self.args[i])
+            #     print(self.p0[i])
+
             for j in range(N):
                 dfdpj = self.signal_derivative(self.args[j], self.p0[j])
+                #print(dfdpj)
                 dfdpj /= self.noise
+                #print(dfdpj)
+                # if dfdpj[self.mask].any() < 0.:
+                #     print(dfdpj)
+                #     print(self.args[j])
+                #     print(self.p0[j])
                 #F[i, j] = np.dot(dfdpi, dfdpj)
                 F[i, j] = np.dot(dfdpi[self.mask], dfdpj[self.mask])
+                # if F[i,j] < 0 :
+                #     print(F[i,j])
+                #     print(dfdpi[self.mask])
+                #     print(dfdpj[self.mask])
+        #print("fisher information matrix")
+        #print(F)
         return F
 
     def signal_derivative(self, x, x0):
