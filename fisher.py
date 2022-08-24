@@ -4,9 +4,8 @@ from scipy import interpolate
 from scipy import linalg
 import sys
 import matplotlib.pyplot as plt
-sys.path.append('/Users/asabyr/Documents/software/sd_foregrounds_optimize/')
-sys.path.append('/Users/asabyr/Documents/software/bolocalc-space/')
-sys.path.append('/Users/asabyr/Documents/software/specter_optimization/')
+sys.path.append('..') #path to fisher code
+sys.path.append('..') #path to project
 from NoiseFunctions import getnoise_nominal
 import spectral_distortions as sd
 import foregrounds_fisher as fg
@@ -43,11 +42,8 @@ class FisherEstimation:
             self.set_frequencies()
             self.noise = self.pixie_sensitivity()
 
-        elif instrument=='firas':
-
-            self.center_frequencies, self.noise = self.firas_sensitivity()
         else:
-            print("choose between pixie, firas or specter")
+            print("choose between pixie or specter")
             return
 
         self.set_signals()
@@ -188,7 +184,7 @@ class FisherEstimation:
         return freqs, centerfreqs, binstep
 
     def pixie_sensitivity(self):
-        sdata = np.loadtxt('/Users/asabyr/Documents/SecondYearProject/sd_foregrounds/templates/Sensitivities.dat', dtype=ndp)
+        sdata = np.loadtxt('templates/Sensitivities.dat', dtype=ndp)
         fs = sdata[:, 0] * 1e9
         sens = sdata[:, 1]
         template = interpolate.interp1d(np.log10(fs), np.log10(sens), bounds_error=False, fill_value="extrapolate")
@@ -208,23 +204,6 @@ class FisherEstimation:
         # print((center_frequencies).astype(ndp))
         # print((sens/ np.sqrt(skysr) * np.sqrt(6./self.duration) * self.mult).astype(ndp))
         return (center_frequencies).astype(ndp),(sens/ np.sqrt(skysr) * np.sqrt(6./self.duration) * self.mult).astype(ndp)
-
-    def firas_sensitivity(self):
-
-        sdata=np.loadtxt('/Users/asabyr/Documents/software/sd_foregrounds_optimize/data/firas_sensitivity.txt', dtype=ndp, delimiter=',')
-        firas_sigmas=np.loadtxt('/Users/asabyr/Documents/software/sd_foregrounds_optimize/data/firas_monopole_spec_v1.txt')
-        fs_sigmas=firas_sigmas[:-2,0]*clight*10**2
-        #print(fs_sigmas)
-        #fs=firas_sigmas[:-2,0]*clight*10**2
-        fs = sdata[:, 0] * 1e9
-        #print(fs)
-        sens = sdata[:, 1]
-        #print("loaded firas sensitivities")
-        #template = interpolate.interp1d(np.log10(fs), np.log10(sens), bounds_error=False, fill_value="extrapolate")
-
-        #return fs_sigmas, 10. ** template(np.log10(fs_sigmas))
-        return fs, sens
-
 
     def get_function_args(self):
         targs = []
