@@ -42,8 +42,11 @@ class FisherEstimation:
             self.set_frequencies()
             self.noise = self.pixie_sensitivity()
 
+        elif instrument=='firas':
+
+            self.center_frequencies, self.noise = self.firas_sensitivity()
         else:
-            print("choose between pixie or specter")
+            print("choose between pixie, firas or specter")
             return
 
         self.set_signals()
@@ -204,6 +207,23 @@ class FisherEstimation:
         # print((center_frequencies).astype(ndp))
         # print((sens/ np.sqrt(skysr) * np.sqrt(6./self.duration) * self.mult).astype(ndp))
         return (center_frequencies).astype(ndp),(sens/ np.sqrt(skysr) * np.sqrt(6./self.duration) * self.mult).astype(ndp)
+
+    def firas_sensitivity(self):
+
+        sdata=np.loadtxt('data/firas_sensitivity.txt', dtype=ndp, delimiter=',')
+        firas_sigmas=np.loadtxt('data/firas_monopole_spec_v1.txt')
+        fs_sigmas=firas_sigmas[:-2,0]*clight*10**2
+        #print(fs_sigmas)
+        #fs=firas_sigmas[:-2,0]*clight*10**2
+        fs = sdata[:, 0] * 1e9
+        #print(fs)
+        sens = sdata[:, 1]
+        #print("loaded firas sensitivities")
+        #template = interpolate.interp1d(np.log10(fs), np.log10(sens), bounds_error=False, fill_value="extrapolate")
+
+        #return fs_sigmas, 10. ** template(np.log10(fs_sigmas))
+        return fs, sens
+
 
     def get_function_args(self):
         targs = []
