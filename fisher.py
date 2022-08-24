@@ -4,10 +4,9 @@ from scipy import interpolate
 from scipy import linalg
 import sys
 import matplotlib.pyplot as plt
-
-sys.path.append('/burg/home/as6131/CMB_dist_instrument/sd_foregrounds_optimize/')
-sys.path.append('/burg/home/as6131/CMB_dist_instrument/specter_optimization_project/')
-
+sys.path.append('/Users/asabyr/Documents/software/sd_foregrounds_optimize/')
+sys.path.append('/Users/asabyr/Documents/software/bolocalc-space/')
+sys.path.append('/Users/asabyr/Documents/software/specter_optimization/')
 from NoiseFunctions import getnoise_nominal
 import spectral_distortions as sd
 import foregrounds_fisher as fg
@@ -18,7 +17,7 @@ class FisherEstimation:
     def __init__(self, fmin=7.5e9, fmax=3.e12, fstep=15.e9, \
                  duration=86.4, bandpass=True, fsky=0.7, mult=1., \
                  priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, instrument='pixie',\
-                  file_prefix='test',freq_bands=np.array([]), Ndet_arr=np.array([]),noisefile=None):
+                  file_prefix='test',freq_bands=np.array([]), Ndet_arr=np.array([]),noisefile=False):
 
         self.fmin = fmin
         self.fmax = fmax
@@ -62,6 +61,42 @@ class FisherEstimation:
         #print(self.noise)
         return
 
+    @staticmethod
+    def cov_inv(cov,dim): #cov = dim x dim -sized cov matrix
+
+        Delta = np.diag(cov)
+        #print(np.shape(cov))
+        # construct correlation matrix R_ij = C_ij/sqrt(C_ii C_jj)
+        R = np.zeros((dim,dim))
+        for i in range(dim):
+            for j in range(dim):
+                R[i,j] = cov[i,j] / np.sqrt(cov[i,i]*cov[j,j])
+                R[j,i] = R[i,j] #symmetrize
+        # compute eigenvalues and eigenvectors of R
+        eigenValues,eigenVectors = np.linalg.eig(R)
+        # sort from largest to smallest eigenvalue
+        idx = eigenValues.argsort()[::-1]
+        eigenValues = eigenValues[idx]
+        eigenVectors = eigenVectors[:,idx]
+        print("eigen values")
+        print(eigenValues)
+        #print("eigen vectors")
+        #print(eigenVectors)
+        # deproject any eigenvalues that are a factor of thresh smaller than the largest one
+        eigenValues_inv = 1.0/eigenValues
+        N_deproj = 0 #count how many are deprojected
+        for i in range(len(eigenValues)):
+            if (eigenValues[i] < 0.):
+                eigenValues_inv[i] = 0.0
+                N_deproj += 1
+        # compute cov^-1 after having deprojected the modes associated with these eigenvalues
+        R_inv = np.inner(np.inner(eigenVectors,np.diag(eigenValues_inv)),eigenVectors)
+        Delta_fac = np.diag(1.0/np.sqrt(Delta))
+        cov_inv = np.inner(np.inner(Delta_fac,R_inv),Delta_fac)
+        print("number of deprojected:")
+        print(N_deproj)
+        return cov_inv
+
     def run_fisher_calculation(self):
         N = len(self.args)
         F = self.calculate_fisher_matrix()
@@ -74,7 +109,29 @@ class FisherEstimation:
         normF = np.zeros([N, N], dtype=ndp)
         for k in range(N):
             normF[k, k] = 1. / F[k, k]
+
+        F_eigen_values=np.linalg.eig(F)[0]
+
+        # if np.all((F_eigen_values > 0.)):
+        #     self.cov = ((np.mat(normF, dtype=ndp) * np.mat(F, dtype=ndp)).I * np.mat(normF, dtype=ndp)).astype(ndp)
+        #
+        # else:
+        #     print("deprojecting negative modes")
+        #     normalizedF=np.mat(normF, dtype=ndp) * np.mat(F, dtype=ndp)
+        #     deproj_cov=FisherEstimation.cov_inv(normalizedF,N)
+        #     self.cov= (deproj_cov * np.mat(normF, dtype=ndp)).astype(ndp)
+
+            #deproj_cov=FisherEstimation.cov_inv(F,N)
+            #self.cov= deproj_cov
+
+        #self.cov=np.mat(F, dtype=ndp).I
         self.cov = ((np.mat(normF, dtype=ndp) * np.mat(F, dtype=ndp)).I * np.mat(normF, dtype=ndp)).astype(ndp)
+        # print("fractional")
+        # print(normalized)
+        #print("eigen normalized")
+        #print(np.linalg.eig(normalizedF)[0])
+        #print("eigen not-normalized")
+        #print(np.linalg.eig(F)[0])
         #self.cov=np.mat(F, dtype=ndp).I
         #self.cov=np.matmul(np.linalg.inv((np.matmul(normF,F))),normF)
         #self.cov=(linalg.inv(normF.dot(F.T))).dot(normF.T)
@@ -183,7 +240,11 @@ class FisherEstimation:
     def calculate_fisher_matrix(self):
         N = len(self.p0)
         F = np.zeros([N, N], dtype=ndp)
+        #print(self.args)
+        #print(self.p0)
         for i in range(N):
+            #print(self.args[i])
+            #print(self.p0[i])
             dfdpi = self.signal_derivative(self.args[i], self.p0[i])
             #print(dfdpi)
             dfdpi /= self.noise
@@ -195,6 +256,8 @@ class FisherEstimation:
 
             for j in range(N):
                 dfdpj = self.signal_derivative(self.args[j], self.p0[j])
+                #print(self.args[j])
+                #print(self.p0[j])
                 #print(dfdpj)
                 dfdpj /= self.noise
                 #print(dfdpj)
@@ -209,13 +272,42 @@ class FisherEstimation:
                 #     print(dfdpi[self.mask])
                 #     print(dfdpj[self.mask])
         #print("fisher information matrix")
+        #print(np.diag(F))
+        #print("Fisher matrix:")
         #print(F)
+        # print("eigen values:")
+        # print(np.linalg.eig(F))
         return F
 
     def signal_derivative(self, x, x0):
         h = 1.e-4
+        #h = 1.e-3
+        #h = 1.e-2
+        # h = 1.e-1
+        #h = 1.e-5
+        #h = 1.e-6
+        # h = 1.e-7
+        #h = 1.e-8
+        #h = 1.e-9
+        #h = 1.e-10
+        #h = 1.e-15
+        #h = 1.e-20
         zp = 1. + h
-        deriv = (self.measure_signal(**{x: x0 * zp}) - self.measure_signal(**{x: x0})) / (h * x0)
+        #print(x0)
+        #np.gradient
+        #f=np.array([self.measure_signal(**{x: x0}),self.measure_signal(**{x: x0 * zp})])
+        #print(f)
+        #deriv = np.gradient(f, x0 * zp, axis=0)[0]
+        #print(deriv)
+        #5pt stencil
+        #deriv=(-self.measure_signal(**{x: x0+x0*2*h})+8*self.measure_signal(**{x: x0+x0*h})-8*self.measure_signal(**{x: x0-x0*h})+self.measure_signal(**{x: x0-x0*2*h})) / (12*h * x0)
+
+        #central diff
+        deriv=(self.measure_signal(**{x: x0 * zp}) - self.measure_signal(**{x: x0-x0*h})) / (2*h * x0)
+
+        #original
+        #deriv = (self.measure_signal(**{x: x0 * zp}) - self.measure_signal(**{x: x0})) / (h * x0)
+
         return deriv
 
     def measure_signal(self, **kwarg):
@@ -223,7 +315,7 @@ class FisherEstimation:
             frequencies = self.band_frequencies
         else:
             frequencies = self.center_frequencies
-
+        #print(kwarg)
         N = len(frequencies)
         model = np.zeros(N, dtype=ndp)
         for fnc in self.signals:
