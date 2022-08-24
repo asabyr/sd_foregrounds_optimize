@@ -53,5 +53,3 @@ def dust_moments(nu, Adm=3.2e-4, alphadm=1.22, Tdm=21.1, omega1=0.09):
     Y1 = X * np.exp(X) / (np.exp(X) - 1.)
     zeroth = Adm * (nu/nu0)**alphadm * nu**3 / (np.exp(X) - 1.)
     return zeroth * (1. + 0.5 * omega1 * lnnu**2) * 1.e-26
-
-
