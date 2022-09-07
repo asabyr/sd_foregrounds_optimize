@@ -106,7 +106,7 @@ class FisherEstimation:
         for k in range(N):
             normF[k, k] = 1. / F[k, k]
 
-        F_eigen_values=np.linalg.eig(F)[0]
+        #F_eigen_values=np.linalg.eig(F)[0]
 
         # if np.all((F_eigen_values > 0.)):
         #     self.cov = ((np.mat(normF, dtype=ndp) * np.mat(F, dtype=ndp)).I * np.mat(normF, dtype=ndp)).astype(ndp)
@@ -278,14 +278,15 @@ class FisherEstimation:
         #print(f)
         #deriv = np.gradient(f, x0 * zp, axis=0)[0]
         #print(deriv)
+
         #5pt stencil
         #deriv=(-self.measure_signal(**{x: x0+x0*2*h})+8*self.measure_signal(**{x: x0+x0*h})-8*self.measure_signal(**{x: x0-x0*h})+self.measure_signal(**{x: x0-x0*2*h})) / (12*h * x0)
 
         #central diff
-        deriv=(self.measure_signal(**{x: x0 * zp}) - self.measure_signal(**{x: x0-x0*h})) / (2*h * x0)
+        #deriv=(self.measure_signal(**{x: x0 * zp}) - self.measure_signal(**{x: x0-x0*h})) / (2*h * x0)
 
         #original
-        #deriv = (self.measure_signal(**{x: x0 * zp}) - self.measure_signal(**{x: x0})) / (h * x0)
+        deriv = (self.measure_signal(**{x: x0 * zp}) - self.measure_signal(**{x: x0})) / (h * x0)
 
         return deriv
 
