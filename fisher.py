@@ -16,7 +16,7 @@ class FisherEstimation:
     def __init__(self, fmin=7.5e9, fmax=3.e12, fstep=15.e9, \
                  duration=86.4, bandpass=True, fsky=0.7, mult=1., \
                  priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, instrument='pixie',\
-                  file_prefix='test',freq_bands=np.array([]), Ndet_arr=np.array([]),noisefile=False):
+                  file_prefix='test',freq_bands=np.array([]), Ndet_arr=np.array([]),hemt_amps=True, hemt_freq=100., noisefile=False):
 
         self.fmin = fmin
         self.fmax = fmax
@@ -29,6 +29,8 @@ class FisherEstimation:
         self.priors = priors
         self.drop = drop
         self.file_prefix=file_prefix
+        self.hemt_amps=hemt_amps
+        self.hemt_freq=hemt_freq
 
         if instrument=='specter':
 
@@ -198,7 +200,7 @@ class FisherEstimation:
 
     def specter_sensitivity(self):
 
-        center_frequencies, sens=getnoise_nominal(prefix=self.file_prefix, bands=self.freq_bands, dets=self.Ndet_arr, precompute=self.noisefile)
+        center_frequencies, sens=getnoise_nominal(prefix=self.file_prefix, bands=self.freq_bands, dets=self.Ndet_arr, hemt_amps=self.hemt_amps,hemt_freq=self.hemt_freq, precompute=self.noisefile)
         skysr = 4. * np.pi * (180. / np.pi) ** 2 * self.fsky
 
         # print((center_frequencies).astype(ndp))
