@@ -11,19 +11,17 @@ sys.path.append(this_dir) #path to fisher code
 import spectral_distortions as sd
 import foregrounds_fisher as fg
 ndp = np.float64
-print(this_dir)
 project_dir=this_dir.replace('software/sd_foregrounds_optimize','specter_optimization/code')
-print(project_dir)
 sys.path.append(project_dir) #path to project
 from NoiseFunctions import getnoise_nominal
-print(project_dir)
 
 class FisherEstimation:
     def __init__(self, fmin=7.5e9, fmax=3.e12, fstep=15.e9, \
                  duration=86.4, bandpass=True, fsky=0.7, mult=1., \
                  priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, instrument='pixie',\
                   file_prefix='test',freq_bands=np.array([]), Ndet_arr=np.array([]),\
-                  hemt_amps=True, hemt_freq=100., noisefile=False):
+                  hemt_amps=True, hemt_freq=100., noisefile=False, 
+                  systematic_error=np.array([])):
 
         self.fmin = fmin
         self.fmax = fmax
@@ -38,6 +36,7 @@ class FisherEstimation:
         self.file_prefix=file_prefix
         self.hemt_amps=hemt_amps
         self.hemt_freq=hemt_freq
+        self.systematic_error=systematic_error
 
         if instrument=='specter':
 
@@ -136,7 +135,6 @@ class FisherEstimation:
     def specter_sensitivity(self):
 
         center_frequencies, sens=getnoise_nominal(prefix=self.file_prefix, bands=self.freq_bands, dets=self.Ndet_arr, hemt_amps=self.hemt_amps,hemt_freq=self.hemt_freq, precompute=self.noisefile)
-        print(sens)
         skysr = 4. * np.pi * (180. / np.pi) ** 2 * self.fsky
 
         return (center_frequencies).astype(ndp),(sens/ np.sqrt(skysr) * np.sqrt(6./self.duration) * self.mult).astype(ndp)
@@ -163,6 +161,24 @@ class FisherEstimation:
                 dfdpj /= self.noise
                 F[i, j] = np.dot(dfdpi[self.mask], dfdpj[self.mask])
         return F
+    
+    def calculate_systematic_bias(self):
+
+        #based on Eq.12 in https://arxiv.org/pdf/2103.05582.pdf
+        N = len(self.p0)
+        sum_term=np.zeros(N)
+        for i in range(N):
+            dfdpi = self.signal_derivative(self.args[i], self.p0[i])
+            dfdpi /= self.noise
+            sum_term[i]=np.dot(dfdpi, self.systematic_error)
+        
+        B=np.array(np.dot(self.cov, sum_term))
+        self.B={}
+        for i in range(N):
+            self.B[self.args[i]]=B[0][i]
+
+        return self.B
+        
 
     def signal_derivative(self, x, x0):
         h = 1.e-4
