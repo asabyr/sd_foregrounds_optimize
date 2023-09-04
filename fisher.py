@@ -21,7 +21,7 @@ class FisherEstimation:
                  priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, instrument='pixie',\
                   file_prefix='test',freq_bands=np.array([]), Ndet_arr=np.array([]),\
                   hemt_amps=True, hemt_freq=100., noisefile=False, 
-                  systematic_error=np.array([])):
+                  systematic_error=np.array([]), arg_dict={}):
 
         self.fmin = fmin
         self.fmax = fmax
@@ -37,6 +37,7 @@ class FisherEstimation:
         self.hemt_amps=hemt_amps
         self.hemt_freq=hemt_freq
         self.systematic_error=systematic_error
+        self.arg_dict=arg_dict
 
         if instrument=='specter':
 
@@ -99,7 +100,11 @@ class FisherEstimation:
                     fg.thermal_dust_rad, fg.cib_rad, fg.jens_freefree_rad,
                     fg.jens_synch_rad, fg.spinning_dust, fg.co_rad]
         self.signals = fncs
-        self.args, self.p0, self.argvals = self.get_function_args()
+        if len(self.arg_dict)==0:
+            self.args, self.p0, self.argvals = self.get_function_args()
+            print(self.argvals)
+        else:
+            self.args, self.p0, self.argvals = self.get_function_args_custom()
         return
 
     def set_frequencies(self):
@@ -148,6 +153,19 @@ class FisherEstimation:
             p0 = argsp[-1]
             targs = np.concatenate([targs, args])
             tp0 = np.concatenate([tp0, p0])
+        return targs, tp0, dict(zip(targs, tp0))
+    
+    def get_function_args_custom(self):
+        targs = []
+        tp0 = []
+        for key,value in self.arg_dict.items():
+            
+            targs.append(key)
+            tp0.append(value)
+        
+        targs=np.array(targs)
+        tp0=np.array(tp0)
+        
         return targs, tp0, dict(zip(targs, tp0))
 
     def calculate_fisher_matrix(self):
