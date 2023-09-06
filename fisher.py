@@ -187,7 +187,7 @@ class FisherEstimation:
         sum_term=np.zeros(N)
         for i in range(N):
             dfdpi = self.signal_derivative(self.args[i], self.p0[i])
-            dfdpi /= self.noise
+            dfdpi /= (self.noise)**2.0
             sum_term[i]=np.dot(dfdpi, self.systematic_error)
         
         B=np.array(np.dot(self.cov, sum_term))
