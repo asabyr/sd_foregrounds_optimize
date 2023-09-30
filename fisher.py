@@ -20,7 +20,7 @@ class FisherEstimation:
                  duration=86.4, bandpass=True, fsky=0.7, mult=1., \
                  priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, instrument='pixie',\
                   file_prefix='test',freq_bands=np.array([]), Ndet_arr=np.array([]),\
-                  hemt_amps=True, hemt_freq=100., noisefile=False, 
+                  hemt_amps=True, hemt_freq=100., noisefile=False,
                   systematic_error=np.array([]), arg_dict={}):
 
         self.fmin = fmin
@@ -56,12 +56,11 @@ class FisherEstimation:
             return
 
         self.set_signals()
-
         if doCO:
             self.mask = ~np.isclose(115.27e9, self.center_frequencies, atol=self.fstep/2.)
         else:
             self.mask = np.ones(len(self.center_frequencies), bool)
-        
+
         return
 
     def run_fisher_calculation(self):
@@ -75,7 +74,7 @@ class FisherEstimation:
         for k in range(N):
             normF[k, k] = 1. / F[k, k]
         self.cov = ((np.mat(normF, dtype=ndp) * np.mat(F, dtype=ndp)).I * np.mat(normF, dtype=ndp)).astype(ndp)
-        #self.cov = np.mat(F, dtype=ndp).I 
+        #self.cov = np.mat(F, dtype=ndp).I
         self.F = F
         self.get_errors()
 
@@ -102,10 +101,34 @@ class FisherEstimation:
         self.signals = fncs
         if len(self.arg_dict)==0:
             self.args, self.p0, self.argvals = self.get_function_args()
-            print(self.argvals)
         else:
             self.args, self.p0, self.argvals = self.get_function_args_custom()
+
+        if self.bandpass:
+            frequencies = self.band_frequencies
+        else:
+            frequencies = self.center_frequencies
+
+        N = len(frequencies)
+        self.tot_spectrum = np.zeros(N, dtype=ndp)
+        print(frequencies)
+        for fnc in self.signals:
+            each_fnc_argsp = inspect.getargspec(fnc)
+            each_fnc_args = each_fnc_argsp[0][1:]
+            kwargs=self.get_kwargs(fnc_args=each_fnc_args)
+            print(fnc)
+            print(kwargs)
+            self.tot_spectrum+=fnc(frequencies, **kwargs)
         return
+
+    def get_kwargs(self,fnc_args):
+
+        kwargs={}
+        for arg in fnc_args:
+            kwargs[arg]=self.argvals[arg]
+
+        return kwargs
+
 
     def set_frequencies(self):
         if self.bandpass:
@@ -117,7 +140,7 @@ class FisherEstimation:
 
     def band_averaging_frequencies(self):
         #freqs = np.arange(self.fmin + self.bandpass_step/2., self.fmax + self.fstep, self.bandpass_step, dtype=ndp)
-        freqs = np.arange(self.fmin + self.bandpass_step/2., self.fmax + self.bandpass_step/2. + self.fmin, self.bandpass_step, dtype=ndp)        
+        freqs = np.arange(self.fmin + self.bandpass_step/2., self.fmax + self.bandpass_step/2. + self.fmin, self.bandpass_step, dtype=ndp)
         binstep = int(self.fstep / self.bandpass_step)
         freqs = freqs[self.drop * binstep : int((len(freqs) / binstep) * binstep)]
         centerfreqs = freqs.reshape((int(len(freqs) / binstep), binstep)).mean(axis=1)
@@ -154,18 +177,18 @@ class FisherEstimation:
             targs = np.concatenate([targs, args])
             tp0 = np.concatenate([tp0, p0])
         return targs, tp0, dict(zip(targs, tp0))
-    
+
     def get_function_args_custom(self):
         targs = []
         tp0 = []
         for key,value in self.arg_dict.items():
-            
+
             targs.append(key)
             tp0.append(value)
-        
+
         targs=np.array(targs)
         tp0=np.array(tp0)
-        
+
         return targs, tp0, dict(zip(targs, tp0))
 
     def calculate_fisher_matrix(self):
@@ -179,7 +202,7 @@ class FisherEstimation:
                 dfdpj /= self.noise
                 F[i, j] = np.dot(dfdpi[self.mask], dfdpj[self.mask])
         return F
-    
+
     def calculate_systematic_bias(self):
 
         #based on Eq.12 in https://arxiv.org/pdf/2103.05582.pdf
@@ -189,14 +212,14 @@ class FisherEstimation:
             dfdpi = self.signal_derivative(self.args[i], self.p0[i])
             dfdpi /= (self.noise)**2.0
             sum_term[i]=np.dot(dfdpi, self.systematic_error)
-        
+
         B=np.array(np.dot(self.cov, sum_term))
         self.B={}
         for i in range(N):
             self.B[self.args[i]]=B[0][i]
 
         return self.B
-        
+
 
     def signal_derivative(self, x, x0):
         h = 1.e-4
