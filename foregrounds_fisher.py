@@ -10,6 +10,7 @@ ndp = np.float64
 
 import os
 this_dir=os.path.dirname(os.path.abspath(__file__))
+from spectral_distortions import DeltaI_cib
 
 def jens_synch_rad(nu, As=288., alps=-0.82, w2s=0.2):
     nu0s = 100.e9
@@ -40,6 +41,14 @@ def thermal_dust_rad(nu, Ad=1.36e6, Bd=1.53, Td=21.):
 def cib_rad(nu, Acib=3.46e5, Bcib=0.86, Tcib=18.8):
     X = hplanck * nu / (kboltz * Tcib)
     return (Acib * X**Bcib * X**3. / (np.exp(X) - 1.0) * jy).astype(ndp)
+
+##### added SZ in CIB #####
+def cib_rad_with_dist(nu, Acib=3.46e5, Bcib=0.86, Tcib=18.8, Acib_sz=1.0):
+    X = hplanck * nu / (kboltz * Tcib)
+    dI=DeltaI_cib(nu, dIcib_amp=Acib_sz)
+
+    return (Acib * X**Bcib * X**3. / (np.exp(X) - 1.0) * jy+dI).astype(ndp)
+##### added SZ in CIB #####
 
 def co_rad(nu, Aco=1.):
     x = np.load(this_dir+'/templates/co_arrays.npy').astype(ndp)
