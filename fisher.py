@@ -11,17 +11,15 @@ sys.path.append(this_dir) #path to fisher code
 import spectral_distortions as sd
 import foregrounds_fisher as fg
 ndp = np.float64
-project_dir=this_dir.replace('software/sd_foregrounds_optimize','specter_optimization/code')
-sys.path.append(project_dir) #path to project
-from NoiseFunctions import getnoise_nominal
+from noise_functions import getnoise_nominal
 
 class FisherEstimation:
     def __init__(self, fmin=7.5e9, fmax=3.e12, fstep=15.e9, \
                  duration=86.4, bandpass=True, fsky=0.7, mult=1., \
                  priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, instrument='pixie',\
-                  file_prefix='test',freq_bands=np.array([]), Ndet_arr=np.array([]),\
+                  file_prefix='test',freq_bands=np.array([]), Ndet_arr=np.array([]),new_instrument_nom_duration=6.0,\
                   hemt_amps=True, hemt_freq=100., noisefile=False,
-                  systematic_error=np.array([]), arg_dict={}):
+                  systematic_error=np.array([]), arg_dict={}, ):
 
         self.fmin = fmin
         self.fmax = fmax
@@ -34,25 +32,25 @@ class FisherEstimation:
         self.priors = priors
         self.drop = drop
         self.file_prefix=file_prefix
+        self.new_instrument_nom_duration=new_instrument_nom_duration
         self.hemt_amps=hemt_amps
         self.hemt_freq=hemt_freq
         self.systematic_error=systematic_error
         self.arg_dict=arg_dict
 
-        if instrument=='specter':
+        if instrument=='new_instrument':
 
             self.freq_bands=freq_bands
             self.Ndet_arr=Ndet_arr
             self.noisefile=noisefile
-            self.center_frequencies, self.noise=self.specter_sensitivity()
-
+            self.center_frequencies, self.noise=self.new_instrument_sensitivity()
 
         elif instrument=='pixie':
             self.set_frequencies()
             self.noise = self.pixie_sensitivity()
 
         else:
-            print("choose between pixie or specter")
+            print("choose between pixie or new_instrument")
             return
 
         self.set_signals()
@@ -111,13 +109,13 @@ class FisherEstimation:
 
         N = len(frequencies)
         self.tot_spectrum = np.zeros(N, dtype=ndp)
-        print(frequencies)
+        # print(frequencies)
         for fnc in self.signals:
             each_fnc_argsp = inspect.getargspec(fnc)
             each_fnc_args = each_fnc_argsp[0][1:]
             kwargs=self.get_kwargs(fnc_args=each_fnc_args)
-            print(fnc)
-            print(kwargs)
+            # print(fnc)
+            # print(kwargs)
             self.tot_spectrum+=fnc(frequencies, **kwargs)
         return
 
@@ -160,12 +158,11 @@ class FisherEstimation:
         else:
             return (10. ** template(np.log10(self.center_frequencies)) / np.sqrt(skysr) * np.sqrt(15. / self.duration) * self.mult * 1.e26).astype(ndp)
 
-    def specter_sensitivity(self):
+    def new_instrument_sensitivity(self):
 
         center_frequencies, sens=getnoise_nominal(prefix=self.file_prefix, bands=self.freq_bands, dets=self.Ndet_arr, hemt_amps=self.hemt_amps,hemt_freq=self.hemt_freq, precompute=self.noisefile)
-        skysr = 4. * np.pi * (180. / np.pi) ** 2 * self.fsky
 
-        return (center_frequencies).astype(ndp),(sens/ np.sqrt(skysr) * np.sqrt(6./self.duration) * self.mult).astype(ndp)
+        return (center_frequencies).astype(ndp),(sens/ np.sqrt(self.fsky) * np.sqrt(self.new_instrument_nom_duration/self.duration) * self.mult).astype(ndp)
 
     def get_function_args(self):
         targs = []
