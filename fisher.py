@@ -11,7 +11,7 @@ sys.path.append(this_dir) #path to fisher code
 import spectral_distortions as sd
 import foregrounds_fisher as fg
 ndp = np.float64
-from noise_functions import getnoise_nominal
+from noise_funcs import getnoise_nominal
 
 class FisherEstimation:
     def __init__(self, fmin=7.5e9, fmax=3.e12, fstep=15.e9, \
@@ -19,7 +19,7 @@ class FisherEstimation:
                  priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, instrument='pixie',\
                   file_prefix='test',freq_bands=np.array([]), Ndet_arr=np.array([]),new_instrument_nom_duration=6.0,\
                   hemt_amps=True, hemt_freq=100., noisefile=False,
-                  systematic_error=np.array([]), arg_dict={}, ):
+                  systematic_error=np.array([]), arg_dict={}):
 
         self.fmin = fmin
         self.fmax = fmax
@@ -32,7 +32,7 @@ class FisherEstimation:
         self.priors = priors
         self.drop = drop
         self.file_prefix=file_prefix
-        self.new_instrument_nom_duration=new_instrument_nom_duration
+        self.new_instrument_nom_duration=new_instrument_nom_duration #nominal duration for new instrument [months]
         self.hemt_amps=hemt_amps
         self.hemt_freq=hemt_freq
         self.systematic_error=systematic_error
@@ -71,6 +71,7 @@ class FisherEstimation:
         normF = np.zeros([N, N], dtype=ndp)
         for k in range(N):
             normF[k, k] = 1. / F[k, k]
+        
         self.cov = ((np.mat(normF, dtype=ndp) * np.mat(F, dtype=ndp)).I * np.mat(normF, dtype=ndp)).astype(ndp)
         #self.cov = np.mat(F, dtype=ndp).I
         self.F = F
