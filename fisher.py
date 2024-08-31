@@ -4,6 +4,7 @@ from scipy import interpolate
 from scipy import linalg
 import sys
 import os
+import copy
 
 this_dir=os.getcwd()
 this_dir=os.path.dirname(os.path.abspath(__file__))
@@ -21,7 +22,7 @@ class FisherEstimation:
                  priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, instrument='pixie',\
                   file_prefix='test',freq_bands=np.array([]), Ndet_arr=np.array([]),\
                   hemt_amps=True, hemt_freq=100., noisefile=False,
-                  systematic_error=np.array([]), arg_dict={}):
+                  systematic_error=np.array([]), arg_dict={}, binstep=500):
 
         self.fmin = fmin
         self.fmax = fmax
@@ -38,12 +39,16 @@ class FisherEstimation:
         self.hemt_freq=hemt_freq
         self.systematic_error=systematic_error
         self.arg_dict=arg_dict
+        
+
 
         if instrument=='specter':
 
             self.freq_bands=freq_bands
             self.Ndet_arr=Ndet_arr
             self.noisefile=noisefile
+            if self.bandpass==True:
+                self.binstep=binstep
             self.center_frequencies, self.noise=self.specter_sensitivity()
 
 
@@ -111,13 +116,13 @@ class FisherEstimation:
 
         N = len(frequencies)
         self.tot_spectrum = np.zeros(N, dtype=ndp)
-        print(frequencies)
+        # print(frequencies)
         for fnc in self.signals:
             each_fnc_argsp = inspect.getargspec(fnc)
             each_fnc_args = each_fnc_argsp[0][1:]
             kwargs=self.get_kwargs(fnc_args=each_fnc_args)
-            print(fnc)
-            print(kwargs)
+            # print(fnc)
+            # print(kwargs)
             self.tot_spectrum+=fnc(frequencies, **kwargs)
         return
 
@@ -164,7 +169,16 @@ class FisherEstimation:
 
         center_frequencies, sens=getnoise_nominal(prefix=self.file_prefix, bands=self.freq_bands, dets=self.Ndet_arr, hemt_amps=self.hemt_amps,hemt_freq=self.hemt_freq, precompute=self.noisefile)
         skysr = 4. * np.pi * (180. / np.pi) ** 2 * self.fsky
-
+        
+        if self.bandpass==True:
+            freqs_bandpass=np.array([])
+            for i in range(len(self.freq_bands)):
+                freqs_per_band=np.linspace(self.freq_bands[i][0],self.freq_bands[i][-1], self.binstep)
+                freqs_bandpass=np.concatenate((freqs_bandpass,freqs_per_band))
+            
+            self.band_frequencies=copy.deepcopy(freqs_bandpass*1e9)
+        else:
+            self.band_frequencies=None
         return (center_frequencies).astype(ndp),(sens/ np.sqrt(skysr) * np.sqrt(6./self.duration) * self.mult).astype(ndp)
 
     def get_function_args(self):
