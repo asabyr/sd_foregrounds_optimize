@@ -50,23 +50,6 @@ def muKtoJypersr_RJ(muK,f):
 
     return muK*dB_dT*1.e26/1.e6
 
-def JypersrtomuK_RJ(Jysr,f):
-
-    """
-    convert from Jy/sr to muK using RJ limit approx
-
-    args:
-    Jysr: sensitivity [Jy/sr]
-    f: frequency [Hz]
-
-    output:
-    sensitivity [muK]
-    """
-
-    Jysr_onemuK=muKtoJypersr_RJ(1.,f)
-    return Jysr*1./Jysr_onemuK
-
-
 def getnoise_raw(path, prefix,bands, hemt_amps = True, hemt_freq = 10):
     """
     calculate instantenous sensitivity for a set of frequency bands using bolocalc calculator
