@@ -4,6 +4,7 @@ from scipy import interpolate
 from scipy import linalg
 import sys
 import os
+import copy
 
 this_dir=os.getcwd()
 this_dir=os.path.dirname(os.path.abspath(__file__))
@@ -19,7 +20,7 @@ class FisherEstimation:
                  priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, instrument='pixie',\
                   file_prefix='test',freq_bands=np.array([]), Ndet_arr=np.array([]),\
                   hemt_amps=True, hemt_freq=100., noisefile=False,
-                  systematic_error=np.array([]), arg_dict={}):
+                  systematic_error=np.array([]), arg_dict={}, binstep=500):
 
         self.fmin = fmin
         self.fmax = fmax
@@ -37,11 +38,15 @@ class FisherEstimation:
         self.systematic_error=systematic_error
         self.arg_dict=arg_dict
 
+
+
         if instrument=='specter':
 
             self.freq_bands=freq_bands
             self.Ndet_arr=Ndet_arr
             self.noisefile=noisefile
+            if self.bandpass==True:
+                self.binstep=binstep
             self.center_frequencies, self.noise=self.specter_sensitivity()
 
         elif instrument=='pixie':
@@ -70,7 +75,7 @@ class FisherEstimation:
         normF = np.zeros([N, N], dtype=ndp)
         for k in range(N):
             normF[k, k] = 1. / F[k, k]
-        
+
         self.cov = ((np.mat(normF, dtype=ndp) * np.mat(F, dtype=ndp)).I * np.mat(normF, dtype=ndp)).astype(ndp)
         #self.cov = np.mat(F, dtype=ndp).I
         self.F = F
@@ -161,6 +166,15 @@ class FisherEstimation:
     def specter_sensitivity(self):
 
         center_frequencies, sens=getnoise_nominal(prefix=self.file_prefix, bands=self.freq_bands, dets=self.Ndet_arr, hemt_amps=self.hemt_amps,hemt_freq=self.hemt_freq, precompute=self.noisefile)
+        if self.bandpass==True:
+            freqs_bandpass=np.array([])
+            for i in range(len(self.freq_bands)):
+                freqs_per_band=np.linspace(self.freq_bands[i][0],self.freq_bands[i][-1], self.binstep)
+                freqs_bandpass=np.concatenate((freqs_bandpass,freqs_per_band))
+
+            self.band_frequencies=copy.deepcopy(freqs_bandpass*1e9)
+        else:
+            self.band_frequencies=None
         #6 months is the assumed nominal duration (see noise_funcs.py), so scale from that
         return (center_frequencies).astype(ndp),(sens/ np.sqrt(self.fsky) * np.sqrt(6.0/self.duration) * self.mult).astype(ndp)
 
