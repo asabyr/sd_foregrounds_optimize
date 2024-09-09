@@ -17,7 +17,7 @@ class FisherEstimation:
     def __init__(self, fmin=7.5e9, fmax=3.e12, fstep=15.e9, \
                  duration=86.4, bandpass=True, fsky=0.7, mult=1., \
                  priors={'alps':0.1, 'As':0.1}, drop=0, doCO=False, instrument='pixie',\
-                  file_prefix='test',freq_bands=np.array([]), Ndet_arr=np.array([]),new_instrument_nom_duration=6.0,\
+                  file_prefix='test',freq_bands=np.array([]), Ndet_arr=np.array([]),\
                   hemt_amps=True, hemt_freq=100., noisefile=False,
                   systematic_error=np.array([]), arg_dict={}):
 
@@ -32,25 +32,24 @@ class FisherEstimation:
         self.priors = priors
         self.drop = drop
         self.file_prefix=file_prefix
-        self.new_instrument_nom_duration=new_instrument_nom_duration #nominal duration for new instrument [months]
         self.hemt_amps=hemt_amps
         self.hemt_freq=hemt_freq
         self.systematic_error=systematic_error
         self.arg_dict=arg_dict
 
-        if instrument=='new_instrument':
+        if instrument=='specter':
 
             self.freq_bands=freq_bands
             self.Ndet_arr=Ndet_arr
             self.noisefile=noisefile
-            self.center_frequencies, self.noise=self.new_instrument_sensitivity()
+            self.center_frequencies, self.noise=self.specter_sensitivity()
 
         elif instrument=='pixie':
             self.set_frequencies()
             self.noise = self.pixie_sensitivity()
 
         else:
-            print("choose between pixie or new_instrument")
+            print("choose between pixie or specter")
             return
 
         self.set_signals()
@@ -159,11 +158,11 @@ class FisherEstimation:
         else:
             return (10. ** template(np.log10(self.center_frequencies)) / np.sqrt(skysr) * np.sqrt(15. / self.duration) * self.mult * 1.e26).astype(ndp)
 
-    def new_instrument_sensitivity(self):
+    def specter_sensitivity(self):
 
         center_frequencies, sens=getnoise_nominal(prefix=self.file_prefix, bands=self.freq_bands, dets=self.Ndet_arr, hemt_amps=self.hemt_amps,hemt_freq=self.hemt_freq, precompute=self.noisefile)
-
-        return (center_frequencies).astype(ndp),(sens/ np.sqrt(self.fsky) * np.sqrt(self.new_instrument_nom_duration/self.duration) * self.mult).astype(ndp)
+        #6 months is the assumed nominal duration (see noise_funcs.py), so scale from that
+        return (center_frequencies).astype(ndp),(sens/ np.sqrt(self.fsky) * np.sqrt(6.0/self.duration) * self.mult).astype(ndp)
 
     def get_function_args(self):
         targs = []
