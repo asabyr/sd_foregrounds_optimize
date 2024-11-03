@@ -1,7 +1,7 @@
 # Spectral Distortion Fisher Forecasting
 
 This is a modified version of the fisher forecasting code: [sd_foregrounds](https://github.com/mabitbol/sd_foregrounds). 
-If you use this version of the code, please cite the original paper/code [Abitbol+2017](https://arxiv.org/abs/1705.01534) and [Sabyr+2024]()
+If you use this version of the code, please cite the original paper/code [Abitbol+2017](https://arxiv.org/abs/1705.01534) and [Sabyr+2024a](https://arxiv.org/abs/2409.12188)
 
 ## Requirements
 [numpy](https://numpy.org/),
