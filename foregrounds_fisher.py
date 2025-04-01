@@ -89,3 +89,8 @@ def zodiac_light(nu, Az=1.0):
     freqs_zd, zd_all, zd_planck, zd_two_masks=np.loadtxt(this_dir+'/templates/zodipy_planck18_10deg_2025-01-01.txt', unpack=True)
     zd = interpolate.interp1d(log10(freqs_zd*1e9), log10(zd_planck), bounds_error=False, fill_value="extrapolate")
     return Az *10. ** zd(log10(nu)).astype(ndp)
+
+def zodiac_light_no_mask(nu, Az=1.0):
+    freqs_zd, zd_all, zd_planck, zd_two_masks=np.loadtxt(this_dir+'/templates/zodipy_planck18_10deg_2025-01-01.txt', unpack=True)
+    zd = interpolate.interp1d(log10(freqs_zd*1e9), log10(zd_all), bounds_error=False, fill_value="extrapolate")
+    return Az *10. ** zd(log10(nu)).astype(ndp)
