@@ -68,29 +68,30 @@ def dust_moments(nu, Adm=3.2e-4, alphadm=1.22, Tdm=21.1, omega1=0.09):
 
 #zodiacal light 
 def zodiac_light_eclip_masked_10deg(nu, Az=1.0):
-    freqs_zd, zd_all, zd_planck, zd_two_masks=np.loadtxt(this_dir+'/templates/zodipy_planck18_10deg_2025-01-01.txt', unpack=True)
+    freqs_zd, zd_all, zd_planck, zd_two_masks=np.loadtxt(this_dir+'/templates/zodipy_planck18_10deg_2025-01-01_no_extrap_freqs.txt', unpack=True)
     zd = interpolate.interp1d(log10(freqs_zd*1e9), log10(zd_two_masks), bounds_error=False, fill_value="extrapolate")
     
     return Az *10. ** zd(log10(nu)).astype(ndp)
 
 def zodiac_light_eclip_masked_15deg(nu, Az=1.0):
-    freqs_zd, zd_all, zd_planck, zd_two_masks=np.loadtxt(this_dir+'/templates/zodipy_planck18_15deg_2025-01-01.txt', unpack=True)
+    freqs_zd, zd_all, zd_planck, zd_two_masks=np.loadtxt(this_dir+'/templates/zodipy_planck18_15deg_2025-01-01_no_extrap_freqs.txt', unpack=True)
     zd = interpolate.interp1d(log10(freqs_zd*1e9), log10(zd_two_masks), bounds_error=False, fill_value="extrapolate")
     
     return Az *10. ** zd(log10(nu)).astype(ndp)
 
 def zodiac_light_eclip_masked_20deg(nu, Az=1.0):
-    freqs_zd, zd_all, zd_planck, zd_two_masks=np.loadtxt(this_dir+'/templates/zodipy_planck18_20deg_2025-01-01.txt', unpack=True)
+    freqs_zd, zd_all, zd_planck, zd_two_masks=np.loadtxt(this_dir+'/templates/zodipy_planck18_20deg_2025-01-01_no_extrap_freqs.txt', unpack=True)
     zd = interpolate.interp1d(log10(freqs_zd*1e9), log10(zd_two_masks), bounds_error=False, fill_value="extrapolate")
     
     return Az *10. ** zd(log10(nu)).astype(ndp)
 
 def zodiac_light(nu, Az=1.0):
-    freqs_zd, zd_all, zd_planck, zd_two_masks=np.loadtxt(this_dir+'/templates/zodipy_planck18_10deg_2025-01-01.txt', unpack=True)
+    freqs_zd, zd_all, zd_planck, zd_two_masks=np.loadtxt(this_dir+'/templates/zodipy_planck18_10deg_2025-01-01_no_extrap_freqs.txt', unpack=True)
     zd = interpolate.interp1d(log10(freqs_zd*1e9), log10(zd_planck), bounds_error=False, fill_value="extrapolate")
     return Az *10. ** zd(log10(nu)).astype(ndp)
 
 def zodiac_light_no_mask(nu, Az=1.0):
-    freqs_zd, zd_all, zd_planck, zd_two_masks=np.loadtxt(this_dir+'/templates/zodipy_planck18_10deg_2025-01-01.txt', unpack=True)
+    freqs_zd, zd_all, zd_planck, zd_two_masks=np.loadtxt(this_dir+'/templates/zodipy_planck18_10deg_2025-01-01_no_extrap_freqs.txt', unpack=True)
     zd = interpolate.interp1d(log10(freqs_zd*1e9), log10(zd_all), bounds_error=False, fill_value="extrapolate")
     return Az *10. ** zd(log10(nu)).astype(ndp)
+
